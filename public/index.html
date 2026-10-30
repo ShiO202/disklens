@@ -1,0 +1,268 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DiskLens · 磁盘空间分析器</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div id="app">
+
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo">▦</div>
+      <div class="brand-text">
+        <h1>DiskLens</h1>
+        <span>磁盘空间分析器</span>
+      </div>
+    </div>
+
+    <div class="drive-zone" id="driveZone">
+      <div class="drive-chip" id="driveChip">
+        <span class="drive-name">C:</span>
+        <div class="drive-meter"><i id="meterFill"></i></div>
+        <span class="drive-num" id="driveNum">—</span>
+      </div>
+    </div>
+
+    <div class="top-actions">
+      <select id="rootSelect" class="select" title="选择要分析的位置">
+        <option value="C:\">C: 全盘</option>
+      </select>
+      <button id="btnScan" class="btn primary">
+        <span class="ico">◎</span> 扫描
+      </button>
+      <button id="btnCancel" class="btn danger hidden">停止</button>
+    </div>
+  </header>
+
+  <main class="workspace">
+    <section class="viz-pane">
+      <nav class="crumbs" id="crumbs">
+        <span class="crumb-empty">扫描后显示目录结构</span>
+      </nav>
+
+      <div class="canvas-wrap" id="canvasWrap">
+        <canvas id="treemap"></canvas>
+        <canvas id="overlay"></canvas>
+
+        <div class="empty-state" id="emptyState">
+          <div class="empty-icon">▦</div>
+          <h2>把硬盘摊开给你看</h2>
+          <p>用矩形面积表示每个文件夹和文件的实际占用，<br>一眼看出空间被谁吃掉了。</p>
+          <button class="btn primary big" id="btnScanBig">开始扫描 C:\</button>
+          <p class="empty-hint">扫描过程只读，不会修改任何文件</p>
+        </div>
+
+        <div class="scan-state hidden" id="scanState">
+          <div class="scan-spinner"></div>
+          <div class="scan-title" id="scanTitle">正在扫描…</div>
+          <div class="scan-path" id="scanPath"></div>
+          <div class="scan-stats" id="scanStats"></div>
+          <div class="scan-bar"><i id="scanBarFill"></i></div>
+        </div>
+
+        <div class="multiselect-bar hidden" id="multiBar">
+          <span class="ms-count" id="multiCount">已选 0 项</span>
+          <span class="ms-size" id="multiSize"></span>
+          <button class="btn sm" id="multiIgnore">忽略</button>
+          <button class="btn sm danger" id="multiDelete">删除选中</button>
+          <button class="btn sm ghost" id="multiClear">取消</button>
+        </div>
+
+        <div class="tooltip hidden" id="tooltip"></div>
+      </div>
+
+      <footer class="viz-foot">
+        <div class="legend" id="legend"></div>
+        <div class="statline" id="statline"></div>
+      </footer>
+    </section>
+
+    <aside class="side-pane">
+      <div class="tabs">
+        <button class="tab active" data-tab="detail">详情</button>
+        <button class="tab" data-tab="clean">清理建议 <em id="cleanBadge"></em></button>
+        <button class="tab" data-tab="settings">设置</button>
+      </div>
+
+      <!-- 详情 -->
+      <div class="tab-body" id="tab-detail">
+        <div class="detail-empty" id="detailEmpty">
+          <p>点击左侧任意矩形查看：</p>
+          <ul>
+            <li>它是什么、占了多少空间</li>
+            <li>能不能删、删了会怎样</li>
+            <li>AI 给出的具体清理建议</li>
+          </ul>
+          <p class="tip">双击矩形可以进入该文件夹</p>
+        </div>
+
+        <div class="detail-body hidden" id="detailBody">
+          <div class="detail-head">
+            <div class="detail-badges" id="detailBadges"></div>
+            <h2 class="detail-name" id="detailName"></h2>
+            <div class="detail-path" id="detailPath"></div>
+          </div>
+
+          <div class="detail-metrics" id="detailMetrics"></div>
+
+          <div class="card rule-card" id="ruleCard"></div>
+
+          <div class="ai-zone">
+            <button class="btn ai-btn" id="btnAI">
+              <span class="ico">✦</span> <span id="aiBtnText">深度分析</span>
+            </button>
+            <div class="ai-result hidden" id="aiResult"></div>
+
+            <div class="followup hidden" id="followup">
+              <div class="fu-history" id="fuHistory"></div>
+              <div class="fu-input-row">
+                <input type="text" id="fuInput" placeholder="继续问：删了会怎样？能只删一部分吗？" autocomplete="off">
+                <button class="btn sm primary" id="fuSend">发送</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="detail-actions" id="detailActions"></div>
+        </div>
+      </div>
+
+      <!-- 清理建议 -->
+      <div class="tab-body hidden" id="tab-clean">
+        <div class="clean-summary" id="cleanSummary">
+          <p class="muted">扫描完成后，这里会列出按「可回收空间」排序的清理候选。</p>
+        </div>
+        <div class="clean-filters hidden" id="cleanFilters">
+          <button class="chip active" data-filter="all">全部</button>
+          <button class="chip" data-filter="safe">可直接清理</button>
+          <button class="chip" data-filter="caution">有代价</button>
+          <button class="chip" data-filter="danger">需确认</button>
+          <button class="chip ghost" id="btnExportPlan">导出清单</button>
+        </div>
+        <div class="clean-list" id="cleanList"></div>
+      </div>
+
+      <!-- 设置 -->
+      <div class="tab-body hidden" id="tab-settings">
+        <div class="settings-group">
+          <h3>AI 分析</h3>
+          <p class="muted small">用于「深度分析」按钮。不配置也能用——工具内置 <b id="ruleCount">130+</b> 条 Windows 清理规则，离线即可判断。</p>
+
+          <label class="field">
+            <span>接口地址 (OpenAI 兼容)</span>
+            <input id="setBaseURL" type="text" placeholder="https://…/v1" spellcheck="false">
+          </label>
+          <label class="field">
+            <span>模型</span>
+            <input id="setModel" type="text" placeholder="gpt-4o-mini" spellcheck="false">
+          </label>
+          <label class="field">
+            <span>API Key</span>
+            <input id="setApiKey" type="password" placeholder="留空则读取环境变量" spellcheck="false">
+          </label>
+          <label class="field">
+            <span>环境变量名（可选）</span>
+            <input id="setApiKeyEnv" type="text" placeholder="OPENAI_API_KEY" spellcheck="false">
+          </label>
+
+          <div class="settings-actions">
+            <button class="btn sm primary" id="btnSaveSettings">保存</button>
+            <button class="btn sm" id="btnTestAI">测试连接</button>
+            <button class="btn sm ghost" id="btnPresetDSH">填入示例地址</button>
+          </div>
+          <div class="test-result hidden" id="testResult"></div>
+        </div>
+
+        <div class="settings-group">
+          <h3>扫描参数</h3>
+          <label class="field">
+            <span>最大深度 <b id="depthVal">16</b></span>
+            <input id="setDepth" type="range" min="6" max="24" value="16">
+          </label>
+          <label class="field">
+            <span>小项聚合阈值 <b id="aggVal">48 KB</b></span>
+            <input id="setAgg" type="range" min="1" max="10" value="5">
+          </label>
+          <p class="muted small">阈值越大，扫描越快、结果越粗略；越小越精细。</p>
+        </div>
+
+        <div class="settings-group">
+          <h3>忽略列表</h3>
+          <p class="muted small">被忽略的文件/文件夹不会出现在矩形视图里，也不会出现在清理建议中。支持通配符，例如 <code>*\node_modules</code>、<code>C:\Windows</code>。</p>
+          <div class="ignore-add">
+            <input type="text" id="ignoreInput" placeholder="路径或通配符" spellcheck="false">
+            <button class="btn sm" id="ignoreAddBtn">添加</button>
+          </div>
+          <div class="ignore-list" id="ignoreList">
+            <p class="muted small">还没有忽略任何项</p>
+          </div>
+        </div>
+
+        <div class="settings-group">
+          <h3>关于</h3>
+          <p class="muted small">
+            DiskLens 只做<b>只读扫描</b>，不会删除、移动或修改任何文件。<br>
+            所有清理动作都会显示具体路径与命令，由你自己执行。<br>
+            扫描结果缓存在 <code>data/scans/</code>，可随时删除。
+          </p>
+        </div>
+      </div>
+    </aside>
+  </main>
+</div>
+
+<div class="toast hidden" id="toast"></div>
+
+<!-- 删除确认弹窗 -->
+<div class="modal hidden" id="deleteModal">
+  <div class="modal-backdrop" data-close="1"></div>
+  <div class="modal-box">
+    <div class="modal-head">
+      <h3 id="delTitle">确认删除</h3>
+      <button class="modal-x" data-close="1">×</button>
+    </div>
+
+    <div class="del-summary">
+      <div class="del-name" id="delName"></div>
+      <div class="del-path" id="delPath"></div>
+    </div>
+
+    <div class="del-metrics" id="delMetrics"></div>
+    <div class="del-warn" id="delWarn"></div>
+
+    <div class="del-modes">
+      <label class="del-mode active" data-mode="recycle">
+        <input type="radio" name="delmode" value="recycle" checked>
+        <div>
+          <b>移到回收站</b>
+          <span>可恢复。同盘移动很快，但空间要清空回收站后才真正释放。</span>
+        </div>
+      </label>
+      <label class="del-mode" data-mode="permanent">
+        <input type="radio" name="delmode" value="permanent">
+        <div>
+          <b>永久删除</b>
+          <span>立即释放空间，<b style="color:#ff9c96">无法恢复</b>。适合确定不要的缓存和大文件。</span>
+        </div>
+      </label>
+    </div>
+
+    <div class="del-note" id="delNote"></div>
+
+    <div class="modal-actions">
+      <button class="btn ghost" data-close="1">取消</button>
+      <button class="btn danger" id="delConfirmBtn">确认删除</button>
+    </div>
+
+    <div class="del-progress hidden" id="delProgress">
+      <div class="scan-spinner" style="width:22px;height:22px;border-width:2px"></div>
+      <span id="delProgressText">正在删除…</span>
+    </div>
+  </div>
+</div>
+
+<script type="module" src="/static/app.js"></script>
+</body>
+</html>

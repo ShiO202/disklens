@@ -1,0 +1,31 @@
+{
+  "name": "disklens",
+  "version": "1.0.0",
+  "description": "磁盘空间可视化分析器：矩形树图 + Windows 清理知识库 + AI 深度分析 + 安全删除",
+  "main": "electron/main.cjs",
+  "type": "module",
+  "scripts": {
+    "start": "node server.mjs --open",
+    "serve": "node server.mjs",
+    "app": "node_modules/electron/dist/electron.exe .",
+    "icon": "powershell -NoProfile -ExecutionPolicy Bypass -File electron/make-icon.ps1",
+    "dist": "electron-packager . DiskLens --platform=win32 --arch=x64 --out=dist --overwrite --asar=false --icon=build/icon.ico --app-version=1.0.0 --win32metadata.ProductName=DiskLens --ignore=\"^/node_modules\" --ignore=\"^/(data|docs|dist)(/|$)\""
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "disk",
+    "treemap",
+    "cleanup",
+    "windows",
+    "storage",
+    "electron"
+  ],
+  "license": "MIT",
+  "private": true,
+  "devDependencies": {
+    "@electron/packager": "^20.3.0",
+    "electron": "^45.1.0"
+  }
+}

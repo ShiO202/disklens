@@ -1,0 +1,29 @@
+# 依赖
+node_modules/
+package-lock.json.bak
+
+# 构建产物
+dist/
+out/
+build/*.tmp
+
+# 运行时数据（含扫描缓存、删除日志、配置与密钥）
+data/
+*.log
+
+# 本地截图（可能含真实路径）
+docs/*.png
+docs/*.jpg
+docs/*.jpeg
+
+# 编辑器 / 系统
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# 临时文件
+*.tmp
+*.bak
+~$*
