@@ -1,4 +1,4 @@
-﻿/* DiskLens 前端逻辑 */
+/* DiskLens 前端逻辑 */
 
 const $ = (s) => document.querySelector(s);
 
@@ -1033,10 +1033,26 @@ function resetScanUI() {
   el.btnScan.classList.remove('hidden');
   el.btnCancel.classList.add('hidden');
   el.scanState.classList.add('hidden');
+  updateScanButton();
 }
 
-el.btnScan.addEventListener('click', () => startScan(el.rootSelect.value || 'C:\\', false));
-el.btnScanBig.addEventListener('click', () => startScan('C:\\', false));
+/** 按钮文案跟着状态走：没有结果时是「扫描」，已有结果时是「重新扫描」 */
+function updateScanButton() {
+  const has = !!state.scanId && !!state.node;
+  el.btnScan.innerHTML = has
+    ? '<span class="ico">⟳</span> 重新扫描'
+    : '<span class="ico">◎</span> 扫描';
+  el.btnScan.title = has
+    ? '重新扫描当前盘（会重新读取所有文件，大目录约 1~3 分钟）'
+    : '扫描所选位置';
+}
+
+el.btnScan.addEventListener('click', () => {
+  const root = el.rootSelect.value || 'C:\\';
+  // 已有结果 → 强制重扫；没有结果 → 普通扫描（服务端本来就没有可复用的）
+  startScan(root, !!state.scanId);
+});
+el.btnScanBig.addEventListener('click', () => startScan('C:\\', !!state.scanId));
 el.btnCancel.addEventListener('click', async () => {
   if (!state.scanId) return;
   try { await api('/api/scan/cancel', { method: 'POST', body: JSON.stringify({ id: state.scanId }) }); } catch { /* ignore */ }
@@ -1571,6 +1587,7 @@ async function loadStatus() {
       loadCandidates();
       toast(`已载入上次扫描结果（${fmtSize(st.latestScan.size)}）`, 2600);
     }
+    updateScanButton();
   } catch (e) {
     toast('无法连接本地服务：' + e.message, 5000);
   }
